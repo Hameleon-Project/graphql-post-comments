@@ -22,8 +22,16 @@ func main() {
 		postRepo = memStorage
 		commentRepo = memStorage
 		log.Println("In-memory storage initialized successfully")
+	} else if cfg.StorageType == "postgres" {
+		pgStorage, err := storage.NewPostgresStorage(cfg.DatabaseURL)
+		if err != nil {
+			log.Fatalf("Failed to initialize postgres storage: %v", err)
+		}
+		postRepo = pgStorage
+		commentRepo = pgStorage
+		log.Println("PostgreSQL storage initialized successfully")
 	} else {
-		log.Fatalf("Storage type %s is not implemented yet", cfg.StorageType)
+		log.Fatalf("Unknown storage type: %s", cfg.StorageType)
 	}
 
 	postService := service.NewPostService(postRepo)

@@ -7,6 +7,7 @@ import (
 type Config struct {
 	StorageType string
 	Port        string
+	DatabaseURL string
 }
 
 func Load() *Config {
@@ -20,8 +21,14 @@ func Load() *Config {
 		port = "8080"
 	}
 
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://postgres:postgres@localhost:5432/comments_db?sslmode=disable"
+	}
+
 	return &Config{
 		StorageType: storage,
 		Port:        port,
+		DatabaseURL: dbURL,
 	}
 }
