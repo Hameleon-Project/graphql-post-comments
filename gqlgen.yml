@@ -1,5 +1,5 @@
 schema:
-  - "graph/*.graphql"
+  - graph/*.graphql
 
 exec:
   filename: graph/generated.go
@@ -14,9 +14,6 @@ resolver:
   dir: internal/handler
   package: handler
 
-autobind:
-  - "graphql-post-comments/internal/model"
-
 models:
   ID:
     model:
@@ -24,3 +21,12 @@ models:
   Int:
     model:
       - github.com/99designs/gqlgen/graphql.Int
+  Time:
+    model:
+      - github.com/99designs/gqlgen/graphql.Time
+  Post:
+    model:
+      - graphql-post-comments/internal/model.Post
+  Comment:
+    model:
+      - graphql-post-comments/internal/model.Comment

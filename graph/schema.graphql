@@ -1,3 +1,5 @@
+scalar Time
+
 type Post {
     id: ID!
     title: String!
@@ -11,8 +13,7 @@ type Comment {
     postId: ID!
     parentId: ID
     content: String!
-    createdAt: String!
-    replies: [Comment!]!
+    createdAt: Time!
 }
 
 type Query {

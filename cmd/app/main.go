@@ -3,8 +3,14 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 
+	gqlhandler "github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/playground"
+
+	"graphql-post-comments/graph"
 	"graphql-post-comments/internal/config"
+	"graphql-post-comments/internal/handler"
 	"graphql-post-comments/internal/service"
 	"graphql-post-comments/internal/storage"
 )
@@ -37,8 +43,18 @@ func main() {
 	postService := service.NewPostService(postRepo)
 	commentService := service.NewCommentService(commentRepo)
 
-	_ = postService
-	_ = commentService
+	srv := gqlhandler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{
+		Resolvers: &handler.Resolver{
+			PostService:    postService,
+			CommentService: commentService,
+		},
+	}))
 
-	log.Println("Services successfully initialized. Ready for transport layer.")
+	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
+	http.Handle("/query", srv)
+
+	log.Printf("Connect to http://localhost:%s/ for GraphQL playground", cfg.Port)
+	if err := http.ListenAndServe(":"+cfg.Port, nil); err != nil {
+		log.Fatalf("Server failed to start: %v", err)
+	}
 }

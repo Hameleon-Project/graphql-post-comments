@@ -15,7 +15,7 @@ func NewPostService(repo storage.PostRepository) *PostService {
 }
 
 func (s *PostService) CreatePost(ctx context.Context, post *model.Post) error {
-	return s.repo.CreatePost(ctx, post) // Поправили вызов
+	return s.repo.CreatePost(ctx, post)
 }
 
 func (s *PostService) GetPostByID(ctx context.Context, id string) (*model.Post, error) {
