@@ -2,18 +2,15 @@ package handler
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"graphql-post-comments/graph"
 	"graphql-post-comments/internal/model"
-	"time"
+
+	"github.com/google/uuid"
 )
 
 func (r *mutationResolver) CreatePost(ctx context.Context, title string, content string, commentsHidden bool) (*model.Post, error) {
-	id := fmt.Sprintf("%d", time.Now().UnixNano())
-
 	post := &model.Post{
-		ID:             id,
+		ID:             uuid.New().String(),
 		Title:          title,
 		Content:        content,
 		CommentsHidden: commentsHidden,
@@ -27,14 +24,21 @@ func (r *mutationResolver) CreatePost(ctx context.Context, title string, content
 }
 
 func (r *mutationResolver) CreateComment(ctx context.Context, postID string, parentID *string, content string) (*model.Comment, error) {
-	if len(content) > 2000 {
+	post, err := r.Resolver.PostService.GetPostByID(ctx, postID)
+	if err != nil {
+		return nil, err
+	}
+
+	if post.CommentsHidden {
+		return nil, model.ErrCommentsDisabled
+	}
+
+	if len(content) > model.MaxCommentLength {
 		return nil, model.ErrCommentTooLong
 	}
 
-	id := fmt.Sprintf("%d", time.Now().UnixNano())
-
 	comment := &model.Comment{
-		ID:       id,
+		ID:       uuid.New().String(),
 		PostID:   postID,
 		ParentID: parentID,
 		Content:  content,
@@ -44,26 +48,47 @@ func (r *mutationResolver) CreateComment(ctx context.Context, postID string, par
 		return nil, err
 	}
 
+	if r.Resolver.CommentBus != nil {
+		r.Resolver.CommentBus.Publish(postID, comment)
+	}
+
 	return comment, nil
 }
 
-func (r *mutationResolver) ToggleComments(ctx context.Context, postID string, hidden bool) (*model.Post, error) {
-	post, err := r.Resolver.PostService.GetPostByID(ctx, postID)
+func (r *mutationResolver) TogglePostComments(ctx context.Context, id string, hidden bool) (*model.Post, error) {
+	post, err := r.Resolver.PostService.GetPostByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
 	post.CommentsHidden = hidden
 
-	if err := r.Resolver.PostService.CreatePost(ctx, post); err != nil {
+	if err := r.Resolver.PostService.UpdatePost(ctx, post); err != nil {
 		return nil, err
 	}
 
 	return post, nil
 }
 
-func (r *postResolver) Comments(ctx context.Context, obj *model.Post, limit int, offset int) ([]*model.Comment, error) {
-	return r.Resolver.CommentService.GetCommentsByPostID(ctx, obj.ID, limit, offset)
+func (r *postResolver) Comments(ctx context.Context, obj *model.Post, limit *int, offset *int) ([]*model.Comment, error) {
+	if limit == nil && offset == nil {
+		loaders := GetLoaders(ctx)
+		if loaders != nil && loaders.CommentsByPostID != nil {
+			thunk := loaders.CommentsByPostID.Load(ctx, obj.ID)
+			return thunk()
+		}
+	}
+
+	l := 0
+	o := 0
+	if limit != nil {
+		l = *limit
+	}
+	if offset != nil {
+		o = *offset
+	}
+
+	return r.Resolver.CommentService.GetCommentsByPostID(ctx, obj.ID, l, o)
 }
 
 func (r *queryResolver) Posts(ctx context.Context) ([]*model.Post, error) {
@@ -79,7 +104,14 @@ func (r *queryResolver) Post(ctx context.Context, id string) (*model.Post, error
 }
 
 func (r *subscriptionResolver) CommentAdded(ctx context.Context, postID string) (<-chan *model.Comment, error) {
-	return nil, errors.New("subscriptions are not implemented yet")
+	ch := r.Resolver.CommentBus.Subscribe(postID)
+
+	go func() {
+		<-ctx.Done()
+		r.Resolver.CommentBus.Unsubscribe(postID, ch)
+	}()
+
+	return ch, nil
 }
 
 func (r *Resolver) Mutation() graph.MutationResolver { return &mutationResolver{r} }

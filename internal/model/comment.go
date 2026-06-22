@@ -1,14 +1,6 @@
 package model
 
-import (
-	"errors"
-	"time"
-)
-
-var (
-	ErrCommentsDisabled = errors.New("comments are disabled for this post")
-	ErrCommentTooLong   = errors.New("comment text exceeds 2000 characters")
-)
+import "time"
 
 type Comment struct {
 	ID        string    `json:"id"`

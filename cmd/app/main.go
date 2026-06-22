@@ -33,6 +33,9 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to initialize postgres storage: %v", err)
 		}
+		if err := pgStorage.Migrate("migrations"); err != nil {
+			log.Fatalf("Failed to run migrations: %v", err)
+		}
 		postRepo = pgStorage
 		commentRepo = pgStorage
 		log.Println("PostgreSQL storage initialized successfully")
@@ -42,16 +45,20 @@ func main() {
 
 	postService := service.NewPostService(postRepo)
 	commentService := service.NewCommentService(commentRepo)
+	commentBus := service.NewCommentEventBus()
 
 	srv := gqlhandler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{
 		Resolvers: &handler.Resolver{
 			PostService:    postService,
 			CommentService: commentService,
+			CommentBus:     commentBus,
 		},
 	}))
 
+	dataloaderHandler := handler.DataLoaderMiddleware(commentService, srv)
+
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", srv)
+	http.Handle("/query", dataloaderHandler)
 
 	log.Printf("Connect to http://localhost:%s/ for GraphQL playground", cfg.Port)
 	if err := http.ListenAndServe(":"+cfg.Port, nil); err != nil {

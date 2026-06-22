@@ -60,13 +60,13 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		CreateComment  func(childComplexity int, postID string, parentID *string, content string) int
-		CreatePost     func(childComplexity int, title string, content string, commentsHidden bool) int
-		ToggleComments func(childComplexity int, postID string, hidden bool) int
+		CreateComment      func(childComplexity int, postID string, parentID *string, content string) int
+		CreatePost         func(childComplexity int, title string, content string, commentsHidden bool) int
+		TogglePostComments func(childComplexity int, id string, hidden bool) int
 	}
 
 	Post struct {
-		Comments       func(childComplexity int, limit int, offset int) int
+		Comments       func(childComplexity int, limit *int, offset *int) int
 		CommentsHidden func(childComplexity int) int
 		Content        func(childComplexity int) int
 		ID             func(childComplexity int) int
@@ -86,10 +86,10 @@ type ComplexityRoot struct {
 type MutationResolver interface {
 	CreatePost(ctx context.Context, title string, content string, commentsHidden bool) (*model.Post, error)
 	CreateComment(ctx context.Context, postID string, parentID *string, content string) (*model.Comment, error)
-	ToggleComments(ctx context.Context, postID string, hidden bool) (*model.Post, error)
+	TogglePostComments(ctx context.Context, id string, hidden bool) (*model.Post, error)
 }
 type PostResolver interface {
-	Comments(ctx context.Context, obj *model.Post, limit int, offset int) ([]*model.Comment, error)
+	Comments(ctx context.Context, obj *model.Post, limit *int, offset *int) ([]*model.Comment, error)
 }
 type QueryResolver interface {
 	Posts(ctx context.Context) ([]*model.Post, error)
@@ -177,17 +177,17 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.CreatePost(childComplexity, args["title"].(string), args["content"].(string), args["commentsHidden"].(bool)), true
 
-	case "Mutation.toggleComments":
-		if e.complexity.Mutation.ToggleComments == nil {
+	case "Mutation.togglePostComments":
+		if e.complexity.Mutation.TogglePostComments == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_toggleComments_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_togglePostComments_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.ToggleComments(childComplexity, args["postId"].(string), args["hidden"].(bool)), true
+		return e.complexity.Mutation.TogglePostComments(childComplexity, args["id"].(string), args["hidden"].(bool)), true
 
 	case "Post.comments":
 		if e.complexity.Post.Comments == nil {
@@ -199,7 +199,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Post.Comments(childComplexity, args["limit"].(int), args["offset"].(int)), true
+		return e.complexity.Post.Comments(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
 
 	case "Post.commentsHidden":
 		if e.complexity.Post.CommentsHidden == nil {
@@ -466,18 +466,18 @@ func (ec *executionContext) field_Mutation_createPost_args(ctx context.Context, 
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_toggleComments_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_togglePostComments_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
-	if tmp, ok := rawArgs["postId"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("postId"))
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
 		arg0, err = ec.unmarshalNID2string(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["postId"] = arg0
+	args["id"] = arg0
 	var arg1 bool
 	if tmp, ok := rawArgs["hidden"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hidden"))
@@ -493,19 +493,19 @@ func (ec *executionContext) field_Mutation_toggleComments_args(ctx context.Conte
 func (ec *executionContext) field_Post_comments_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 int
+	var arg0 *int
 	if tmp, ok := rawArgs["limit"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
-		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		arg0, err = ec.unmarshalOInt2ᚖint(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
 	args["limit"] = arg0
-	var arg1 int
+	var arg1 *int
 	if tmp, ok := rawArgs["offset"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
-		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		arg1, err = ec.unmarshalOInt2ᚖint(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -948,8 +948,8 @@ func (ec *executionContext) fieldContext_Mutation_createComment(ctx context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_toggleComments(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_toggleComments(ctx, field)
+func (ec *executionContext) _Mutation_togglePostComments(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_togglePostComments(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -962,7 +962,7 @@ func (ec *executionContext) _Mutation_toggleComments(ctx context.Context, field 
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().ToggleComments(rctx, fc.Args["postId"].(string), fc.Args["hidden"].(bool))
+		return ec.resolvers.Mutation().TogglePostComments(rctx, fc.Args["id"].(string), fc.Args["hidden"].(bool))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -979,7 +979,7 @@ func (ec *executionContext) _Mutation_toggleComments(ctx context.Context, field 
 	return ec.marshalNPost2ᚖgraphqlᚑpostᚑcommentsᚋinternalᚋmodelᚐPost(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_toggleComments(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_togglePostComments(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -1008,7 +1008,7 @@ func (ec *executionContext) fieldContext_Mutation_toggleComments(ctx context.Con
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_toggleComments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_togglePostComments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -1205,7 +1205,7 @@ func (ec *executionContext) _Post_comments(ctx context.Context, field graphql.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Post().Comments(rctx, obj, fc.Args["limit"].(int), fc.Args["offset"].(int))
+		return ec.resolvers.Post().Comments(rctx, obj, fc.Args["limit"].(*int), fc.Args["offset"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3458,9 +3458,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "toggleComments":
+		case "togglePostComments":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_toggleComments(ctx, field)
+				return ec._Mutation_togglePostComments(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -4103,21 +4103,6 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 	return res
 }
 
-func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
-	res, err := graphql.UnmarshalInt(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
-	res := graphql.MarshalInt(v)
-	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-	}
-	return res
-}
-
 func (ec *executionContext) marshalNPost2graphqlᚑpostᚑcommentsᚋinternalᚋmodelᚐPost(ctx context.Context, sel ast.SelectionSet, v model.Post) graphql.Marshaler {
 	return ec._Post(ctx, sel, &v)
 }
@@ -4498,6 +4483,22 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 		return graphql.Null
 	}
 	res := graphql.MarshalID(*v)
+	return res
+}
+
+func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v interface{}) (*int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.SelectionSet, v *int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	res := graphql.MarshalInt(*v)
 	return res
 }
 

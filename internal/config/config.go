@@ -23,7 +23,7 @@ func Load() *Config {
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/comments_db?sslmode=disable"
+		dbURL = "postgres://user:password@localhost:5432/graphql_db?sslmode=disable"
 	}
 
 	return &Config{

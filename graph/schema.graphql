@@ -5,7 +5,7 @@ type Post {
     title: String!
     content: String!
     commentsHidden: Boolean!
-    comments(limit: Int!, offset: Int!): [Comment!]!
+    comments(limit: Int, offset: Int): [Comment!]!
 }
 
 type Comment {
@@ -24,7 +24,7 @@ type Query {
 type Mutation {
     createPost(title: String!, content: String!, commentsHidden: Boolean!): Post!
     createComment(postId: ID!, parentId: ID, content: String!): Comment!
-    toggleComments(postId: ID!, hidden: Boolean!): Post!
+    togglePostComments(id: ID!, hidden: Boolean!): Post!
 }
 
 type Subscription {
