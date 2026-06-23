@@ -47,7 +47,7 @@ func TestMemoryStorage_PostCRUD(t *testing.T) {
 	}
 }
 
-func TestMemoryStorage_CommentsDisabled(t *testing.T) {
+func TestMemoryStorage_CreateComment(t *testing.T) {
 	ctx := context.Background()
 	store := storage.NewMemoryStorage()
 
@@ -56,29 +56,25 @@ func TestMemoryStorage_CommentsDisabled(t *testing.T) {
 		t.Fatalf("CreatePost: %v", err)
 	}
 
-	err := store.CreateComment(ctx, &model.Comment{ID: "c1", PostID: "p1", Content: "hello"})
-	if err != model.ErrCommentsDisabled {
-		t.Fatalf("expected ErrCommentsDisabled, got %v", err)
+	comment := &model.Comment{ID: "c1", PostID: "p1", Content: "hello"}
+	if err := store.CreateComment(ctx, comment); err != nil {
+		t.Fatalf("CreateComment: %v", err)
 	}
-}
-
-func TestMemoryStorage_CommentTooLong(t *testing.T) {
-	ctx := context.Background()
-	store := storage.NewMemoryStorage()
-
-	post := &model.Post{ID: "p1", Title: "Title", Content: "Content"}
-	if err := store.CreatePost(ctx, post); err != nil {
-		t.Fatalf("CreatePost: %v", err)
+	if comment.CreatedAt.IsZero() {
+		t.Fatal("expected CreatedAt to be set")
 	}
 
-	longContent := make([]byte, model.MaxCommentLength+1)
-	for i := range longContent {
-		longContent[i] = 'a'
+	comments, err := store.GetByPostID(ctx, "p1", 0, 0)
+	if err != nil {
+		t.Fatalf("GetByPostID: %v", err)
+	}
+	if len(comments) != 1 {
+		t.Fatalf("expected 1 comment, got %d", len(comments))
 	}
 
-	err := store.CreateComment(ctx, &model.Comment{ID: "c1", PostID: "p1", Content: string(longContent)})
-	if err != model.ErrCommentTooLong {
-		t.Fatalf("expected ErrCommentTooLong, got %v", err)
+	err = store.CreateComment(ctx, &model.Comment{ID: "c2", PostID: "missing", Content: "orphan"})
+	if err != model.ErrPostNotFound {
+		t.Fatalf("expected ErrPostNotFound, got %v", err)
 	}
 }
 
@@ -120,22 +116,6 @@ func TestMemoryStorage_HierarchicalPagination(t *testing.T) {
 	}
 	if !ids[parent3] || !ids["child3"] {
 		t.Fatalf("expected newest root3 and child3, got %v", ids)
-	}
-}
-
-func TestMemoryStorage_InvalidParent(t *testing.T) {
-	ctx := context.Background()
-	store := storage.NewMemoryStorage()
-
-	post := &model.Post{ID: "p1", Title: "Title", Content: "Content"}
-	if err := store.CreatePost(ctx, post); err != nil {
-		t.Fatalf("CreatePost: %v", err)
-	}
-
-	parentID := "missing"
-	err := store.CreateComment(ctx, &model.Comment{ID: "c1", PostID: "p1", ParentID: &parentID, Content: "hello"})
-	if err != model.ErrParentNotFound {
-		t.Fatalf("expected ErrParentNotFound, got %v", err)
 	}
 }
 

@@ -44,7 +44,7 @@ func main() {
 	}
 
 	postService := service.NewPostService(postRepo)
-	commentService := service.NewCommentService(commentRepo)
+	commentService := service.NewCommentService(postRepo, commentRepo)
 	commentBus := service.NewCommentEventBus()
 
 	srv := gqlhandler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{

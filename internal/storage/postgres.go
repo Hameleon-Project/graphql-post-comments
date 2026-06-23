@@ -99,36 +99,10 @@ func (s *PostgresStorage) GetAll(ctx context.Context) ([]*model.Post, error) {
 }
 
 func (s *PostgresStorage) CreateComment(ctx context.Context, comment *model.Comment) error {
-	var commentsHidden bool
-	err := s.db.QueryRowContext(ctx, "SELECT comments_hidden FROM posts WHERE id = $1", comment.PostID).Scan(&commentsHidden)
-	if err == sql.ErrNoRows {
-		return model.ErrPostNotFound
-	}
-	if err != nil {
-		return err
-	}
-	if commentsHidden {
-		return model.ErrCommentsDisabled
-	}
-
-	if len(comment.Content) > model.MaxCommentLength {
-		return model.ErrCommentTooLong
-	}
-
-	if comment.ParentID != nil {
-		parent, err := s.GetCommentByID(ctx, *comment.ParentID)
-		if err != nil {
-			return model.ErrParentNotFound
-		}
-		if parent.PostID != comment.PostID {
-			return model.ErrParentNotFound
-		}
-	}
-
 	comment.CreatedAt = time.Now()
 
 	query := `INSERT INTO comments (id, post_id, parent_id, content, created_at) VALUES ($1, $2, $3, $4, $5)`
-	_, err = s.db.ExecContext(ctx, query, comment.ID, comment.PostID, comment.ParentID, comment.Content, comment.CreatedAt)
+	_, err := s.db.ExecContext(ctx, query, comment.ID, comment.PostID, comment.ParentID, comment.Content, comment.CreatedAt)
 	return err
 }
 

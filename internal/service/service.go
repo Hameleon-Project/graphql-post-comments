@@ -32,16 +32,27 @@ func (s *PostService) GetAllPosts(ctx context.Context) ([]*model.Post, error) {
 }
 
 type CommentService struct {
-	repo storage.CommentRepository
+	postRepo    storage.PostRepository
+	commentRepo storage.CommentRepository
 }
 
-func NewCommentService(repo storage.CommentRepository) *CommentService {
-	return &CommentService{repo: repo}
+func NewCommentService(postRepo storage.PostRepository, commentRepo storage.CommentRepository) *CommentService {
+	return &CommentService{postRepo: postRepo, commentRepo: commentRepo}
 }
 
 func (s *CommentService) CreateComment(ctx context.Context, comment *model.Comment) error {
+	post, err := s.postRepo.GetByID(ctx, comment.PostID)
+	if err != nil {
+		return err
+	}
+	if post.CommentsHidden {
+		return model.ErrCommentsDisabled
+	}
+	if len(comment.Content) > model.MaxCommentLength {
+		return model.ErrCommentTooLong
+	}
 	if comment.ParentID != nil {
-		parent, err := s.repo.GetCommentByID(ctx, *comment.ParentID)
+		parent, err := s.commentRepo.GetCommentByID(ctx, *comment.ParentID)
 		if err != nil {
 			return model.ErrParentNotFound
 		}
@@ -49,13 +60,13 @@ func (s *CommentService) CreateComment(ctx context.Context, comment *model.Comme
 			return model.ErrParentNotFound
 		}
 	}
-	return s.repo.CreateComment(ctx, comment)
+	return s.commentRepo.CreateComment(ctx, comment)
 }
 
 func (s *CommentService) GetCommentsByPostID(ctx context.Context, postID string, limit, offset int) ([]*model.Comment, error) {
-	return s.repo.GetByPostID(ctx, postID, limit, offset)
+	return s.commentRepo.GetByPostID(ctx, postID, limit, offset)
 }
 
 func (s *CommentService) GetCommentsByPostIDs(ctx context.Context, postIDs []string) (map[string][]*model.Comment, error) {
-	return s.repo.GetCommentsByPostIDs(ctx, postIDs)
+	return s.commentRepo.GetCommentsByPostIDs(ctx, postIDs)
 }

@@ -71,22 +71,8 @@ func (s *MemoryStorage) CreateComment(ctx context.Context, comment *model.Commen
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	post, exists := s.posts[comment.PostID]
-	if !exists {
+	if _, exists := s.posts[comment.PostID]; !exists {
 		return model.ErrPostNotFound
-	}
-	if post.CommentsHidden {
-		return model.ErrCommentsDisabled
-	}
-
-	if len(comment.Content) > model.MaxCommentLength {
-		return model.ErrCommentTooLong
-	}
-
-	if comment.ParentID != nil {
-		if err := s.validateParentLocked(comment.PostID, *comment.ParentID); err != nil {
-			return err
-		}
 	}
 
 	comment.CreatedAt = time.Now()
@@ -128,15 +114,6 @@ func (s *MemoryStorage) GetCommentsByPostIDs(ctx context.Context, postIDs []stri
 		}
 	}
 	return result, nil
-}
-
-func (s *MemoryStorage) validateParentLocked(postID, parentID string) error {
-	for _, c := range s.comments[postID] {
-		if c.ID == parentID {
-			return nil
-		}
-	}
-	return model.ErrParentNotFound
 }
 
 func paginateCommentTree(allComments []*model.Comment, limit, offset int) []*model.Comment {
